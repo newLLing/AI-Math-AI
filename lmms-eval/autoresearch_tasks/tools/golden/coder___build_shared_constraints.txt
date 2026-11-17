@@ -1,0 +1,37 @@
+[Core Constraints - ALL MUST follow]
+1. selected_indices MUST be torch.Tensor, dtype=torch.long, device=image_embeds.device (NOT Python list).
+2. **Device Consistency**: All new Tensors created via torch.arange/tensor/zeros/ones MUST specify device=image_embeds.device.
+3. **No numpy**: Use only native PyTorch operations; avoid np.array and other CPU operations.
+4. **Numerical Stability**: If using torch.linalg.svd/qr/eigh, convert to float32 FIRST.
+   CORRECT: `U, S, Vh = torch.linalg.svd(image_embeds.to(torch.float32), full_matrices=False)`
+   CORRECT: `Q, R = torch.linalg.qr(image_embeds.to(torch.float32))`
+   WRONG: `U, S, Vh = torch.linalg.svd(image_embeds, full_matrices=False)`  (will crash on fp16/bf16)
+5. **No silent fallback**: NEVER wrap core algorithm with try-except Exception and fall back to uniform sampling / retain-all. Use explicit if conditions for boundary cases instead.
+6. **retain_ratio**: token_retain_ratio default MUST be "0.1"; hardcoding other values is forbidden.
+7. **No arange fallback**: NEVER use torch.arange(0, N, step=...) or torch.arange(N) as fallback. Use torch.randperm(N)[:target_vision_tokens] if needed.
+8. **Fixed logic**: Implement exactly ONE fixed algorithm. Do NOT introduce runtime branching that switches between different strategies.
+9. **Performance Awareness**: torch.linalg.cholesky/eigvalsh/eigh/svd/qr and torch.cdist 
+   have high GPU kernel-launch overhead. Calling them inside a Python for/while loop 
+   (even indirectly through a local function) causes CPU-GPU synchronization on every 
+   iteration and can slow per-sample inference from ~1s to >5s, making the whole 
+   evaluation exceed 20 minutes. If your algorithm needs these operations, prefer 
+   batch/vectorized forms or precompute them before any loop.
+10. **Avoid Tensor-in-Python**: `if x in tensor:` and `for x in tensor:` trigger 
+    CPU-GPU synchronization. Use torch.isin(), boolean masks, or .tolist() instead.
+11. **Self-check before output**: Verify your code does NOT place torch.linalg.* 
+    or torch.cdist inside loops, and does NOT use `in` on Tensors.
+
+[Common Pitfalls - AVOID these]
+- `self.config.pad_token_id` does NOT exist on Qwen2_5_VLConfig. If you need it, use `getattr(self.config, 'pad_token_id', None)`.
+- `Qwen2_5_VLModelOutputWithPast` is NOT automatically imported. If you use it in return statement, you MUST add `from transformers.models.qwen2_5_vl.modeling_qwen2_5_vl import Qwen2_5_VLModelOutputWithPast` at the top.
+- `auto_docstring` is NOT needed in your generated code. NEVER import it and NEVER use `@auto_docstring` decorator. It is purely for documentation and is not required for execution.
+- Do NOT assume vision token count N is a perfect square. Use robust factorization instead of `H = W = int(math.isqrt(N))`.
+- If you MUST call `AutoTokenizer.from_pretrained` or similar in your code, ALWAYS add `local_files_only=True` to avoid network requests.
+
+[Forbidden APIs - NEVER call these]
+- NEVER call `self.embed_tokens(...)`. It does NOT exist. Use `embed_layer = self.get_input_embeddings()` then `embed_layer(...)`.
+- NEVER call `self.model_embed_tokens(...)`. It does NOT exist.
+- NEVER call `self._select_tokens(...)`. It does NOT exist. Implement selection with torch.topk/argsort/masking.
+- NEVER call `self.get_question_embedding(...)`. It does NOT exist. Derive text embeddings from text_token_embedding or inputs_embeds + input_ids masking.
+- NEVER call `self.tokenizer(...)` directly. No tokenizer object is available in this scope.
+- NEVER call `self.model(...)`. It does NOT exist. Use `self.language_model(...)`.

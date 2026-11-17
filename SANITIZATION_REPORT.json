@@ -1,0 +1,28 @@
+{
+  "included_files": 16841,
+  "nested_identical_files_removed": 2350,
+  "historical_conflicts": [
+    "best_code.py",
+    "experiment_results.md",
+    "exploration_tree.json",
+    "system_000.log"
+  ],
+  "excluded_counts": {
+    "bytecode": 859
+  },
+  "redactions": {
+    "names": 26926,
+    "personal_paths": 22628,
+    "emails": 3,
+    "credentials": 0,
+    "attributions": 11402
+  },
+  "preexisting_python_syntax_errors": [],
+  "preexisting_invalid_json": [],
+  "deduplication_rule": "Only byte-identical nested copies removed; unique files merged and conflicting root files retained under historical_snapshot.",
+  "validation_scope": "Static parsing and known-identity scanning; no model evaluation performed.",
+  "additional_person_name_redactions": 5616,
+  "final_algorithm_ast_equivalence": true,
+  "known_identity_residual_files": 0,
+  "person_name_review": "Pattern checks plus automatic contextual entity recognition; mathematical terminology retained. Entity recognition is heuristic, not a guarantee of exhaustive detection."
+}

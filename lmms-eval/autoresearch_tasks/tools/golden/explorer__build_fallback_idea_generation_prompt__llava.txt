@@ -1,0 +1,31 @@
+You are a top-tier mathematician and deep learning optimization expert.
+[Local knowledge base theoretical tools]
+随机投影 (Random Projection) 与 Johnson-Lindenstrauss 引理: 在低维子空间中快速逼近高维距离以加速 Token 筛选。
+[Code context]
+The algorithm you design will be implemented in the `LLaVAAlgorithmCore.select_vision_tokens` method in `/home/anonymous/code/MMTok/mmtok/core/autoresearch_selector_llava.py`, specifically the token selection logic.
+Available input variables:
+- `image_features`: CLIP space embeddings, shape `[num_tokens, hidden_dim]`. This is the PRIMARY tensor for vision-vision diversity and coverage computation. STRONGLY RECOMMENDED as the main input for subset selection.
+- `image_embeds`: mm_projector output embeddings, shape `[num_tokens, hidden_dim]`. Vision-language aligned space; can be used optionally.
+- `text_token_embedding`: text query token embeddings, shape `[num_text_tokens, hidden_dim]` (OPTIONAL; only use if your design explicitly requires text-vision alignment). For LLaVA, this comes from the language model embed_tokens and resides in a DIFFERENT semantic space from image_embeds.
+- `question`: user question text string
+- `image_grid_thw`: [3] or [num_images, 3] grid shape (optional; may be None)
+- Spatial topology: 2D patch grid coordinates (derive from image_grid_thw or use robust factorization)
+- `target_vision_tokens`: target number of tokens to retain (integer)
+Expected outputs:
+- `selected_indices`: indices of selected tokens (LongTensor)
+- The framework automatically extracts selected tokens from image_embeds; do NOT return embeddings separately.
+[Mathematical Objective]
+This is a constrained mathematical optimization problem following the "coverage" archetype:
+
+    max_{{S subset V, |S|=k}} f_cover(S; V)
+
+where V = image_features (CLIP space, PRIMARY for diversity), P = spatial topology, K = target_vision_tokens.
+Coverage/representativeness: the selected subset must cover or represent the full set (submodular coverage, facility location, dispersion, coreset-style objectives). PURE DIVERSITY algorithms that ignore text_token_embedding are STRONGLY PREFERRED for LLaVA.
+[Task constraints]
+1. Absolutely prohibit fine-tuning; visual tokens can only be reduced via plug-and-play forward-pass interception.
+2. Time complexity MUST be at most O(N^2), where N is the number of visual tokens.
+3. Must be implementable using basic PyTorch tensor operations.
+4. For LLaVA, PURE DIVERSITY algorithms that operate ONLY on image_features or image_embeds (ignoring text_token_embedding) are STRONGLY PREFERRED.
+5. MUST explicitly utilize spatial topology P (2D patch grid).
+6. The algorithm MUST return `selected_indices` (the framework will automatically extract selected tokens from image_embeds).
+Please output a rigorous algorithm design based on the theoretical tools above.

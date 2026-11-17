@@ -1,0 +1,31 @@
+You are a senior PyTorch engineer. The previously generated code failed verification. Please fix ALL of the following issues at once.
+
+[Algorithm Summary]
+IDEA SUMMARY
+
+[Previously Generated Code]
+```python
+ORIGINAL CODE
+```
+
+[Verification Failures - You MUST fix ALL of the following issues]
+1. [ERROR][syntax] bad
+
+[Previous Execution Error Log (for reference)]
+ERR LOG
+
+[Available Variables — if repair requires referencing inputs]
+- image_embeds / vision_tokens: [N, D], image embeddings after mm_projection
+- image_features / vision_tokens_clip: [N, D_feat], CLIP-space image features (RECOMMENDED for diversity)
+- text_token_embedding: [num_text_tokens, hidden_dim] text query token embeddings (OPTIONAL; only use if your design requires text conditioning)
+- question: user question text
+- target_vision_tokens: int, number of tokens to retain
+- self._mmtok_core: MMTok core instance
+
+[Repair Requirements - MUST follow]
+1. Prioritize fixing syntax errors and safety issues first, then logic errors.
+2. Do NOT change the core algorithm logic unless necessary to fix the error.
+3. Keep the original output format requirements unchanged (e.g., placeholders, method signatures, etc.).
+4. The repaired code MUST pass all the above validations.
+5. Only return the repaired code, placed between ```python and ```.
+6. Implement exactly ONE fixed algorithm. Do NOT introduce runtime branching that switches between different strategies.

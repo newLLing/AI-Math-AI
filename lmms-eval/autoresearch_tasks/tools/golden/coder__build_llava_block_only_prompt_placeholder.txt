@@ -1,0 +1,107 @@
+You are a senior PyTorch engineer. Please implement the token selection logic according to the algorithm design.
+
+[Algorithm Design]
+IDEA SAMPLE
+
+[Available Variables]
+- image_embeds: [num_tokens, hidden_dim] image embeddings after mm_projection (shape [N, D]; e.g. D=4096), same as vision_tokens
+- vision_tokens: alias for image_embeds, mm_projector output embeddings
+- vision_tokens_clip: CLIP space embeddings, i.e. image_features, shape [num_tokens, feature_dim] where feature_dim != hidden_dim (e.g. feature_dim=1024). RECOMMENDED for diversity. NEVER element-wise combine image_embeds and image_features without projecting first.
+- text_token_embedding: [num_text_tokens, hidden_dim] text query token embeddings (OPTIONAL; only use if your design explicitly requires text conditioning).
+- question: user question text, obtained via self.get_question() (dynamically bound at runtime)
+- target_vision_tokens: target number of tokens to retain, from self._mmtok_core.target_vision_tokens (fixed value)
+- padding_patch_indices: optional, indices of padding patches that should be excluded from selection (if present)
+- self._mmtok_core: MMTok core instance
+
+[Space Alignment Caution]
+- text_token_embedding (language model embed_tokens) and image_embeds (mm_projector) are in DIFFERENT spaces. Normalize BOTH before similarity.
+- image_features/vision_tokens_clip lives in CLIP space and is often BETTER for diversity.
+- Pure diversity algorithms (ignore text_token_embedding) are VALID and sometimes best.
+
+[Core Constraints - ALL MUST follow]
+1. selected_indices MUST be torch.Tensor, dtype=torch.long, device=image_embeds.device (NOT Python list).
+2. **Device Consistency**: All new Tensors created via torch.arange/tensor/zeros/ones MUST specify device=image_embeds.device.
+3. **No numpy**: Use only native PyTorch operations; avoid np.array and other CPU operations.
+4. **Numerical Stability**: If using torch.linalg.svd/qr/eigh, convert to float32 FIRST.
+   CORRECT: `U, S, Vh = torch.linalg.svd(image_embeds.to(torch.float32), full_matrices=False)`
+   CORRECT: `Q, R = torch.linalg.qr(image_embeds.to(torch.float32))`
+   WRONG: `U, S, Vh = torch.linalg.svd(image_embeds, full_matrices=False)`  (will crash on fp16/bf16)
+5. **No silent fallback**: NEVER wrap core algorithm with try-except Exception and fall back to uniform sampling / retain-all. Use explicit if conditions for boundary cases instead.
+6. **No arange fallback**: NEVER use torch.arange(0, N, step=...) or torch.arange(N) as fallback. Use torch.randperm(N)[:target_vision_tokens] if needed.
+7. **Fixed logic**: Implement exactly ONE fixed algorithm. Do NOT introduce runtime branching that switches between different strategies.
+8. **Performance Awareness**: torch.linalg.cholesky/eigvalsh/eigh/svd/qr and torch.cdist 
+   have high GPU kernel-launch overhead. Calling them inside a Python for/while loop 
+   (even indirectly through a local function) causes CPU-GPU synchronization on every 
+   iteration and can slow per-sample inference from ~1s to >5s, making the whole 
+   evaluation exceed 20 minutes. If your algorithm needs these operations, prefer 
+   batch/vectorized forms or precompute them before any loop.
+9. **Avoid Tensor-in-Python**: `if x in tensor:` and `for x in tensor:` trigger 
+    CPU-GPU synchronization. Use torch.isin(), boolean masks, or .tolist() instead.
+10. **Self-check before output**: Verify your code does NOT place torch.linalg.* 
+    or torch.cdist inside loops, and does NOT use `in` on Tensors.
+
+[Space Alignment Caution — CRITICAL for LLaVA]
+- text_token_embedding comes from the LANGUAGE MODEL's embed_tokens (word embedding space).
+- image_embeds comes from the mm_projector output (vision-language aligned space).
+- These two tensors share the same dimension D but reside in DIFFERENT semantic spaces.
+- If you compute text-vision similarity (dot product or cosine similarity), you MUST L2-normalize both sides FIRST. Direct raw dot product without normalization is unreliable and often hurts performance.
+- image_features (a.k.a. vision_tokens_clip) lives in the CLIP vision space. It is often BETTER suited for vision-vision similarity / diversity computation than image_embeds. Strongly consider using it for coverage/diversity terms.
+- PURE DIVERSITY algorithms (ignoring text_token_embedding entirely) are VALID and sometimes perform best. Do NOT feel forced to use text_token_embedding.
+
+[Forbidden APIs - NEVER call these]
+- NEVER call `self.language_model(...)`. It does NOT exist in LLaVA. Use `self.get_model()`.
+- NEVER call `self.get_input_embeddings(...)` directly. Use `self.get_model().get_input_embeddings()`.
+- NEVER call `self.embed_tokens(...)`. It does NOT exist.
+- NEVER call `self._select_tokens(...)`. It does NOT exist. Implement selection with torch.topk/argsort/masking.
+- NEVER call `self.get_question_embedding(...)`. It does NOT exist. Use tokenizer + self.get_model().get_input_embeddings() explicitly.
+
+[Working Example - FORMAT REFERENCE ONLY]
+Below shows the EXACT code structure you MUST follow. The algorithm core section is a PLACEHOLDER. You MUST replace it with an algorithm **derived from the [Algorithm Design] and recalled mathematical theory above**. Do NOT copy the placeholder logic.
+
+```python
+# === MMTOK_ALGORITHM_START ===
+question = self.get_question()
+target_vision_tokens = self._mmtok_core.target_vision_tokens
+
+# Handle edge cases explicitly
+# NOTE: image_embeds can be 3D [batch_size, num_tokens, hidden_dim]
+# or 2D [num_tokens, hidden_dim]. n should always be num_tokens.
+if image_embeds.dim() == 3:
+    n = image_embeds.shape[1]  # num_tokens
+else:
+    n = image_embeds.shape[0]
+if target_vision_tokens <= 0:
+    selected_indices = torch.empty(0, dtype=torch.long, device=image_embeds.device)
+elif target_vision_tokens >= n:
+    selected_indices = torch.arange(n, dtype=torch.long, device=image_embeds.device)
+else:
+    # --- ALGORITHM CORE START ---
+    # [Replace this ENTIRE section with YOUR algorithm from [Algorithm Design]]
+    # Derive the implementation from the recalled mathematical theory.
+    # DO NOT copy the skeleton below. It only demonstrates variable usage.
+    #
+    # Variable reminders:
+    #   - N = image_embeds.shape[0]
+    #   - image_features (CLIP space) is preferred for vision-vision diversity.
+    #   - text_token_embedding is OPTIONAL; use only if your theory requires it.
+    #   - image_grid_thw provides 2D spatial topology (derive H, W from it).
+    #
+    # You MUST assign selected_indices before the END marker.
+    # The skeleton below is a MINIMUM placeholder — replace with YOUR logic.
+    N = image_embeds.shape[0]
+    selected_indices = torch.randperm(N, device=image_embeds.device)[:target_vision_tokens]
+    # --- ALGORITHM CORE END ---
+
+# NOTE: Preserve batch dimension if input is 3D [batch_size, num_tokens, hidden_dim]
+selected_image_embeds = image_embeds[:, selected_indices, :] if image_embeds.dim() == 3 else image_embeds[selected_indices]
+# === MMTOK_ALGORITHM_END ===
+```
+
+[Your Task]
+Follow the EXACT structure of the Working Example above:
+1. Keep variable initialization (question, target_vision_tokens) identical.
+2. Keep edge case handling (target_vision_tokens <= 0 / >= n) identical.
+3. Replace ONLY the section between `# --- ALGORITHM CORE START ---` and `# --- ALGORITHM CORE END ---` with YOUR algorithm from the [Algorithm Design] above.
+4. Keep the post-algorithm logic (`selected_image_embeds = image_embeds[selected_indices]`) IDENTICAL.
+5. Keep the `# === MMTOK_ALGORITHM_START ===` and `# === MMTOK_ALGORITHM_END ===` markers.
+6. You MUST define `selected_indices` inside the algorithm core section.

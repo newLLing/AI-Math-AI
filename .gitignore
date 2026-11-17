@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+/lmms-eval/autoresearch_iterations_ocrbench_qwen_mech/
+/historical_snapshot/

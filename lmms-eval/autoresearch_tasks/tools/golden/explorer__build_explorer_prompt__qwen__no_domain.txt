@@ -1,0 +1,88 @@
+You are a top-tier mathematician and deep learning optimization expert. Your goal is to design efficient visual token selection algorithms for Token Reduction in the Qwen2.5-VL model.
+[Topic-driven theoretical knowledge]
+[RECALLED KNOWLEDGE SAMPLE]
+Theorem X: ...
+[Exploration status — saturated directions to AVOID]
+avoid direction Y
+[Focus of this candidate Idea]
+Focus on the implementation simplicity and computational efficiency of the algorithm.
+[Code context]
+The algorithm you design will be implemented in the `if select_pixel:` block within the `Qwen2_5_VL_MMTok.forward` method in `/home/anonymous/code/MMTok/mmtok/qwen/qwen2_5_VLmodel_mmtok.py`, specifically the token selection logic.
+Available input variables:
+- `vision_tokens_clip`: CLIP space embeddings, i.e., `image_features`, shape `[num_tokens, hidden_dim]`. PRIMARY tensor for subset selection — historical evidence on this benchmark shows algorithms selecting in CLIP space outperform those using projector space.
+- `vision_tokens`: mm_projector output embeddings, i.e., `image_embeds`, shape `[num_tokens, hidden_dim]` (same token count as vision_tokens_clip). OPTIONAL auxiliary signal.
+- `text_token_embedding`: text query token embeddings, shape `[num_text_tokens, hidden_dim]` (derived from the question text). OPTIONAL for Qwen2.5-VL: use only when your recalled theory provides a clear justification for text conditioning (or when the iteration's Usage Mode requires it).
+- `question`: user question text string
+- Spatial topology: vision tokens are arranged in a 2D patch grid. You can reconstruct spatial coordinates as `H = W = int(N ** 0.5)` when N is a perfect square. Use this to define the spatial topology P.
+- `target_vision_tokens`: target number of tokens to retain (integer)
+Expected outputs:
+- `selected_indices`: indices of selected tokens (LongTensor)
+- `selected_image_embeds`: embeddings extracted from image_embeds according to selected_indices
+[Mathematical Framework — Driven by Recalled Theory]
+You may use ANY mathematical, statistical, physical, biological, engineering, signal-processing, evolutionary, control-theoretic, neuroscience, compression, or computational framework that can be expressed in Python + PyTorch.
+The only constraints are the inputs/outputs and complexity listed above.
+
+Design your algorithm within the mathematical framework of the recalled theoretical knowledge above.
+Do NOT translate the recalled theory into an already-familiar framework (e.g., greedy determinant / volume maximization, DPP MAP, or generic submodular coverage) unless the recalled theory itself belongs to that family.
+
+[Objective Archetype for THIS iteration — MANDATORY]
+Your objective function MUST follow this archetype:
+    max_{S subset V, |S|=k} f_cover(S; V)
+Coverage/representativeness: the selected subset must cover or represent the full set (submodular coverage, facility location, dispersion, coreset-style objectives).
+Do NOT default to the generic two-term form "alpha * f_align(S, q) + beta * f_coherence(S, P)" unless the archetype above is itself alignment/information. You may add regularizers or constraints, but the PRIMARY objective must instantiate the archetype's form, and you must state explicitly which symbol maps to which tensor.
+If you draw inspiration from a non-math domain, you MUST:
+  1. Explain the analogy clearly.
+  2. Argue why it is appropriate for token selection.
+  3. Provide a concrete PyTorch implementation.
+
+Requirements for ALL frameworks:
+  - V = vision tokens (for LLaVA, PRIMARY input is `image_features` in CLIP space).
+  - P = spatial topology (2D patch grid).
+  - Pure diversity (ignoring text_token_embedding) is one viable option; text-conditioned designs are equally acceptable when the recalled theory calls for them.
+  - You MUST explain WHY your chosen framework is natural for this problem.
+[Task constraints - strictly follow]
+1. Absolutely prohibit fine-tuning; visual tokens can only be reduced via plug-and-play forward-pass interception.
+2. Time complexity MUST be at most O(N^2), where N is the number of visual tokens.
+3. The algorithm must be implementable in pure Python + PyTorch. You MAY use custom tensor operations, lightweight loops, and auxiliary data structures (heap, queue, tree, hash table, sketch, grid, codebook). If a theoretical operator has no direct PyTorch API, provide a clear approximate implementation using basic tensor operations or Python loops. Methods that are purely abstract with no computational realization are still prohibited.
+4. Proactively analyze possible numerical stability issues (NaN/Inf, division by zero, degenerate tensors) and dimension mismatch issues in your design, and provide targeted engineering safeguards.
+5. The algorithm MUST return both `selected_indices` and `selected_image_embeds`.
+6. Both pure-diversity algorithms (operating only on image_features/image_embeds) and text-conditioned algorithms (using text_token_embedding) are acceptable for BOTH models. Choose based on the recalled theory and justify your choice theoretically.
+9. [Engineering implementability] The output MUST include a complete runnable PyTorch pseudocode snippet showing the full forward logic from `image_embeds` to `selected_indices`; boundary condition handling (empty tensor, `target_vision_tokens=0`, all-zero embeddings, device/dtype inconsistency, etc.) MUST be explicitly stated.
+Please output a rigorous algorithm design based on the theoretical tools searched above.
+
+【强制输出顺序 - 必须先完成数学论证，再写代码】
+
+1. Algorithm name and mathematical objective function
+   - Name MUST NOT contain "Norm-Weighted", "Farthest Point Sampling", "Random Projection Guided" or other common template names unless truly necessary.
+   - Objective function MUST be written in pure mathematical notation (LaTeX-style), not vague descriptions.
+
+2. Mathematical Formalization & Mapping Argument (MUST complete this step BEFORE writing code)
+   a. Formalize visual token selection as a pure mathematical optimization problem using set theory, optimization, or probability language. STRICTLY FORBIDDEN to mention tokens, vision, neural networks, or deep learning.
+   b. Argument: Why is the recalled mathematical theory a NATURAL solution to this formalized problem? Provide at least 2 rigorous sentences.
+   c. Computational Steps: For EACH core computation step in the theory, list the corresponding PyTorch API or a concrete approximate implementation (e.g., distance matrix → torch.cdist, sorting → torch.topk, custom loop → for-loop with heap). If a step has no direct PyTorch API, describe an approximation strategy.
+   d. Prohibited Vanilla Templates: You are NOT allowed to directly implement any of the following. If your idea resembles one, you MUST replace at least one core component with a fundamentally different mechanism (e.g., replace distance-based selection with entropy-based gating, replace greedy loop with evolutionary selection, replace static projection with adaptive learned/importance-weighted projection, replace ranking with simulation/control):
+      - "FPS+Norm weighting" (geometry-only, no text query)
+      - "RandomProjection+TopK" (projection then ranking)
+      - "KMeans+distance ranking" (clustering centroid distance)
+      - "CosineSimilarity+TopK" (simple text-vision similarity sorting — the MOST common trap)
+      - "CrossAttentionScore+TopK" (attention-weighted ranking)
+      - "QueryNormDotProduct+SpatialPenalty" (weighted sum of dot product and spatial regularizer)
+
+3. Concrete forward computation graph derivation and PyTorch pseudocode implementation logic (ONLY write this AFTER completing step 2)
+   - Show the complete logic from `image_embeds` to `selected_indices` and `selected_image_embeds`.
+   - Boundary conditions MUST be explicitly handled (empty tensor, `target_vision_tokens=0`, all-zero embeddings, device/dtype inconsistency).
+
+4. Key hyperparameter suggestions (e.g., distance weighting coefficients, temperature parameters)
+
+5. Numerical stability precautions (e.g., avoid division by zero, handle empty tensors)
+
+6. Cited theoretical sources (indicate which specific domain they come from)
+
+7. [New] Difference explanation from historical schemes (briefly explain how this scheme differs from previous attempts)
+
+8. [Primary Direction Declaration — MANDATORY] On a single line at the very end of your output, declare the primary mathematical domain of your core selection mechanism in EXACTLY this format:
+   PRIMARY_DIRECTION: <one of: svd, qr, eigenvalue, clustering, attention, sampling, projection, ranking, geometry, entropy, graph, gradient, cross_modal, spatial_coherence, multimodal_fusion, general>
+   The direction must reflect the CORE mathematical mechanism of your objective function (e.g., an information-bottleneck objective is `entropy` even if it uses distances internally; a greedy distance-coverage objective is `geometry`). Do NOT classify by auxiliary operations like distance computation or sorting.
+
+[Absolute Prohibition]
+- It is STRICTLY FORBIDDEN to suggest modifying `retain_ratio` or `token_retain_ratio`. This value is fixed at 0.10 by the experimental environment and cannot be used as an adjustable algorithm hyperparameter. Suggesting to modify retain_ratio is considered cheating and will directly invalidate the Idea.

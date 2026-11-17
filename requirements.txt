@@ -1,0 +1,11 @@
+# Base deps (install PyTorch first; see install.md)
+transformers==4.52.4
+loguru
+sentencepiece
+protobuf
+accelerate
+pillow
+einops
+requests
+open_clip_torch
+arxiv>=2.0

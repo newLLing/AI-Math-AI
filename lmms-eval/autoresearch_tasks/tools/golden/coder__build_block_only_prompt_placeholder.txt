@@ -1,0 +1,97 @@
+You are a senior PyTorch engineer. Please implement the token selection logic according to the algorithm design.
+
+[Algorithm Design]
+IDEA SAMPLE
+
+[Available Variables]
+- image_embeds: [num_tokens, hidden_dim] image embeddings (same as vision_tokens)
+- image_features: [num_features, feature_dim] image features (same as vision_tokens_clip)
+- vision_tokens: alias for image_embeds, mm_projector output embeddings
+- vision_tokens_clip: alias for image_features, CLIP space embeddings
+- question: user question text, obtained via self.get_question() (dynamically bound at runtime)
+- target_vision_tokens: target number of tokens to retain, calculated as int(token_retain_ratio * image_embeds.shape[0])
+- inputs_embeds: full input embeddings tensor, from which you can safely derive text token embeddings via input_ids masking
+- input_ids: token IDs corresponding to inputs_embeds
+
+[CRITICAL: text_token_embedding is available — use it directly]
+At the beginning of the `if select_pixel:` block, the template safely computes `text_token_embedding` from `inputs_embeds` and `input_ids` via:
+    text_mask = (input_ids[0] != self.config.image_token_id)
+    if hasattr(self.config, 'video_token_id'):
+        text_mask = text_mask & (input_ids[0] != self.config.video_token_id)
+    text_embeds = inputs_embeds[0, text_mask]
+    text_token_embedding = text_embeds if text_embeds.shape[0] > 0 else torch.zeros(1, image_embeds.shape[1], device=image_embeds.device, dtype=torch.float32)
+You MUST use this variable directly. DO NOT recompute it unless it is genuinely unavailable.
+If you need a text query vector, simply do:
+    q_emb = text_token_embedding.mean(dim=0)
+NEVER call tokenizer or re-derive text embeddings from inputs_embeds unless necessary.
+
+[Core Constraints - ALL MUST follow]
+1. selected_indices MUST be torch.Tensor, dtype=torch.long, device=image_embeds.device (NOT Python list).
+2. **Device Consistency**: All new Tensors created via torch.arange/tensor/zeros/ones MUST specify device=image_embeds.device.
+3. **No numpy**: Use only native PyTorch operations; avoid np.array and other CPU operations.
+4. **Numerical Stability**: If using torch.linalg.svd/qr/eigh, convert to float32 FIRST.
+   CORRECT: `U, S, Vh = torch.linalg.svd(image_embeds.to(torch.float32), full_matrices=False)`
+   CORRECT: `Q, R = torch.linalg.qr(image_embeds.to(torch.float32))`
+   WRONG: `U, S, Vh = torch.linalg.svd(image_embeds, full_matrices=False)`  (will crash on fp16/bf16)
+5. **No silent fallback**: NEVER wrap core algorithm with try-except Exception and fall back to uniform sampling / retain-all. Use explicit if conditions for boundary cases instead.
+6. **retain_ratio**: token_retain_ratio default MUST be "0.1"; hardcoding other values is forbidden.
+7. **No arange fallback**: NEVER use torch.arange(0, N, step=...) or torch.arange(N) as fallback. Use torch.randperm(N)[:target_vision_tokens] if needed.
+8. **Fixed logic**: Implement exactly ONE fixed algorithm. Do NOT introduce runtime branching that switches between different strategies.
+9. **Performance Awareness**: torch.linalg.cholesky/eigvalsh/eigh/svd/qr and torch.cdist 
+   have high GPU kernel-launch overhead. Calling them inside a Python for/while loop 
+   (even indirectly through a local function) causes CPU-GPU synchronization on every 
+   iteration and can slow per-sample inference from ~1s to >5s, making the whole 
+   evaluation exceed 20 minutes. If your algorithm needs these operations, prefer 
+   batch/vectorized forms or precompute them before any loop.
+10. **Avoid Tensor-in-Python**: `if x in tensor:` and `for x in tensor:` trigger 
+    CPU-GPU synchronization. Use torch.isin(), boolean masks, or .tolist() instead.
+11. **Self-check before output**: Verify your code does NOT place torch.linalg.* 
+    or torch.cdist inside loops, and does NOT use `in` on Tensors.
+
+[Common Pitfalls - AVOID these]
+- `self.config.pad_token_id` does NOT exist on Qwen2_5_VLConfig. If you need it, use `getattr(self.config, 'pad_token_id', None)`.
+- `Qwen2_5_VLModelOutputWithPast` is NOT automatically imported. If you use it in return statement, you MUST add `from transformers.models.qwen2_5_vl.modeling_qwen2_5_vl import Qwen2_5_VLModelOutputWithPast` at the top.
+- `auto_docstring` is NOT needed in your generated code. NEVER import it and NEVER use `@auto_docstring` decorator. It is purely for documentation and is not required for execution.
+- Do NOT assume vision token count N is a perfect square. Use robust factorization instead of `H = W = int(math.isqrt(N))`.
+- If you MUST call `AutoTokenizer.from_pretrained` or similar in your code, ALWAYS add `local_files_only=True` to avoid network requests.
+
+[Forbidden APIs - NEVER call these]
+- NEVER call `self.embed_tokens(...)`. It does NOT exist. Use `embed_layer = self.get_input_embeddings()` then `embed_layer(...)`.
+- NEVER call `self.model_embed_tokens(...)`. It does NOT exist.
+- NEVER call `self._select_tokens(...)`. It does NOT exist. Implement selection with torch.topk/argsort/masking.
+- NEVER call `self.get_question_embedding(...)`. It does NOT exist. Derive text embeddings from text_token_embedding or inputs_embeds + input_ids masking.
+- NEVER call `self.tokenizer(...)` directly. No tokenizer object is available in this scope.
+- NEVER call `self.model(...)`. It does NOT exist. Use `self.language_model(...)`.
+
+[Working Example - PROVEN WORKING IMPLEMENTATION]
+Below is the EXACT structure of the code block you need to generate. The template ALREADY handles preprocessing (question, token_retain_ratio, target_vision_tokens, text_token_embedding) and postprocessing (selected_image_embeds, select_mask, img_mask, position_ids/attention_mask/inputs_embeds update). 
+
+You ONLY need to implement the algorithm core between `# --- ALGORITHM CORE START ---` and `# --- ALGORITHM CORE END ---`.
+
+```python
+    # --- ALGORITHM CORE START ---
+    # [Replace this ENTIRE section with YOUR algorithm from the Algorithm Design above]
+    # Derive the implementation from the recalled mathematical theory.
+    # DO NOT copy the skeleton below. It only demonstrates variable usage.
+    #
+    # Variable reminders:
+    #   - N = image_embeds.shape[0]
+    #   - image_features (CLIP space) is preferred for vision-vision diversity.
+    #   - text_token_embedding is OPTIONAL; use only if your theory requires it.
+    #   - Spatial topology can be derived from image_embeds shape or image_grid_thw.
+    #
+    # You MUST assign selected_indices before the END marker.
+    # The skeleton below is a MINIMUM placeholder — replace with YOUR logic.
+    N = image_embeds.shape[0]
+    selected_indices = torch.randperm(N, device=image_embeds.device)[:target_vision_tokens]
+    # --- ALGORITHM CORE END ---
+```
+
+[Your Task]
+Follow the EXACT structure of the Working Example above:
+1. Generate ONLY the code between `# --- ALGORITHM CORE START ---` and `# --- ALGORITHM CORE END ---`.
+2. Do NOT include question/token_retain_ratio/target_vision_tokens initialization — the template handles these.
+3. Do NOT include post-algorithm logic (selected_image_embeds, select_mask, img_mask, position_ids/attention_mask/inputs_embeds update) — the template handles these.
+4. You MUST define `selected_indices` inside the algorithm core section.
+5. `text_token_embedding` is PRE-COMPUTED and available directly. Use it. DO NOT recompute it using tokenizer.
+6. Keep the `# --- ALGORITHM CORE START ---` and `# --- ALGORITHM CORE END ---` markers.

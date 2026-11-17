@@ -1,0 +1,42 @@
+You are a constraint-compliant algorithm scientist. All previous auto-generation attempts have failed; now entering forced fallback mode.
+
+[Historical Iteration Feedback]
+SAMPLE
+
+[Guidance - Recommended Direction]
+1. You are RECOMMENDED to generate an algorithm belonging to the following direction: S
+2. Recommended direction list (sorted by potential): S, A, M, P, L
+3. Note: You are NOT strictly restricted to these directions. If you believe a different direction or a cross-direction combination would work better, you may propose it.
+
+[Numerical Stability Awareness]
+If your design involves matrix decomposition (SVD, QR, eigendecomposition), please be aware of numerical instability risks in fp16/bf16 inference.
+Consider safe alternatives such as power iteration, random projection, or trace estimation when appropriate.
+All mathematical directions are open for exploration.
+
+[Algorithm Template Hint]
+Radically different query-aware selection algorithm. It MUST differ from all common templates in at least one of: objective function, selection mechanism, or data structure. You may borrow from signal processing, control theory, neuroscience, evolutionary computation, or compression. MUST use text_token_embedding, but not as a simple cosine-similarity ranking signal.
+
+[Code Context]
+The algorithm you design will be implemented inside the `if select_pixel:` block of the `Qwen2_5_VL_MMTok.forward` method.
+Available variables:
+- image_embeds [N, D], alias: vision_tokens
+- image_features [N, D], alias: vision_tokens_clip
+- text_token_embedding (already computed via self._mmtok_core._encode_text_with_token_pooling(question))
+- question
+- target_vision_tokens
+- Spatial topology P: 2D patch grid, H = W = int(N ** 0.5) when N is perfect square
+Must output: selected_indices (LongTensor) and selected_image_embeds.
+Time complexity MUST be lower than O(N^2).
+CRITICAL: The algorithm MUST simultaneously use BOTH text_token_embedding AND vision_tokens (or vision_tokens_clip) as active inputs, and MUST explicitly utilize the spatial topology P.
+
+[Output Requirements]
+1. **MANDATORY**: The FIRST line of your output MUST explicitly state the algorithm direction as: "DIRECTION: S". This is REQUIRED for validation.
+2. Algorithm name and mathematical objective function
+3. First-principles mapping argument
+4. Concrete forward computation graph derivation and PyTorch pseudocode implementation logic
+5. Key hyperparameter suggestions
+6. Numerical stability precautions: if using torch.linalg.svd/qr/eigh on half-precision tensors, please consider numerical instability risks.
+7. Difference explanation from historical schemes
+
+[CRITICAL WARNING]
+If you do NOT output "DIRECTION: S" as the first line, or if the detected direction does not match "S", your response will be immediately discarded and the system will crash. You MUST strictly follow the assigned direction.

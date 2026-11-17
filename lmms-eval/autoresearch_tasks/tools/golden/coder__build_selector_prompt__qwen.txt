@@ -1,0 +1,77 @@
+You are a senior PyTorch engineer. Please implement the token selection algorithm inside the `select_vision_tokens` method of `QwenAlgorithmCore`.
+
+[Algorithm Design]
+IDEA SAMPLE
+
+[Available Variables — INSIDE select_vision_tokens]
+- image_embeds: [N, D] image embeddings (mm_projector output). This is the PRIMARY vision tensor.
+- image_features: [N, D_feat] CLIP-space image features. D_feat is typically 1024 and DIFFERENT from D (mm_projector output dim, e.g. 4096). NEVER assume D_feat == D. RECOMMENDED for vision-vision diversity and coverage computation.
+- text_token_embedding: [L, D] text token embeddings (OPTIONAL; only use if your design explicitly requires text-vision alignment).
+- question: str, the user question text.
+- target_vision_tokens: int, target number of tokens to retain (already validated; 0 < target_vision_tokens < N).
+- image_grid_thw: [3] or [num_images, 3] grid shape (optional; may be None).
+- image_embeds.device: torch.device of the input tensors.
+- image_embeds.shape[0]: int N, number of vision tokens.
+
+[Core Constraints - ALL MUST follow]
+1. **Output**: You MUST define `selected_indices` (torch.Tensor, dtype=torch.long, device=image_embeds.device).
+   `selected_indices` MUST be sorted in ASCENDING order (original token order). The downstream framework expects selected tokens in their original spatial/sequential order.
+2. **Device Consistency**: All new Tensors created via torch.arange/tensor/zeros/ones MUST specify device=image_embeds.device.
+3. **No numpy**: Use only native PyTorch operations; avoid np.array and other CPU operations.
+4. **Numerical Stability**: If using torch.linalg.svd/qr/eigh, convert to float32 FIRST.
+   CORRECT: `U, S, Vh = torch.linalg.svd(image_embeds.to(torch.float32), full_matrices=False)`
+   CORRECT: `Q, R = torch.linalg.qr(image_embeds.to(torch.float32))`
+   WRONG: `U, S, Vh = torch.linalg.svd(image_embeds, full_matrices=False)`  (will crash on fp16/bf16)
+5. **No silent fallback**: NEVER wrap core algorithm with try-except Exception and fall back to uniform sampling / retain-all. Use explicit if conditions for boundary cases instead.
+6. **No arange fallback**: NEVER use torch.arange(0, N, step=...) or torch.arange(N) as fallback. Use torch.randperm(image_embeds.shape[0])[:target_vision_tokens] if needed.
+7. **Fixed logic**: Implement exactly ONE fixed algorithm. Do NOT introduce runtime branching that switches between different strategies.
+8. **Performance Awareness**: torch.linalg.cholesky/eigvalsh/eigh/svd/qr and torch.cdist 
+   have high GPU kernel-launch overhead. Calling them inside a Python for/while loop 
+   causes CPU-GPU synchronization on every iteration and can slow per-sample inference from ~1s to >5s.
+   If your algorithm needs these operations, prefer batch/vectorized forms or precompute them before any loop.
+9. **Avoid Tensor-in-Python**: `if x in tensor:` and `for x in tensor:` trigger CPU-GPU synchronization.
+   Use torch.isin(), boolean masks, or .tolist() instead.
+10. **Self-check before output**: Verify your code does NOT place torch.linalg.* or torch.cdist inside loops, and does NOT use `in` on Tensors.
+11. **Dtype Discipline**: The input tensors are bf16/fp16, but intermediate scoring tensors are often float32 — mixing them crashes with 'expected mat1 and mat2 to have the same dtype'.
+    Do all scoring/similarity/Gram-matrix computations in float32: cast EVERY tensor involved with `X = X.float()` first.
+    NEVER cast only one side of a matmul/@ to `image_embeds.dtype` — one-sided casting creates the mismatch it tries to fix.
+    `selected_indices` MUST stay torch.long on image_embeds.device.
+12. **Grid Reality**: N is generally NOT a perfect square, and `image_grid_thw` may be None (it is NOT forwarded on this evaluation path).
+    NEVER `assert H * W == N` or `raise ValueError(... perfect square ...)`.
+    If you need a 2D grid, use robust factorization: `H = int(N ** 0.5)` then `while N % H != 0: H -= 1`, then `W = N // H`; or fall back to 1D coordinates / a grid-free variant.
+13. **Memory & Runtime Budget**: The evaluation has a hard wall-clock limit per iteration; slow code is scored as failure.
+    NEVER materialize [N, N, D] 3D intermediates — pairwise operations only on [N, N] scalar matrices; for large N, project features down (e.g. random projection to <=256 dims) or compute in chunks before pairwise ops.
+    Python loops with per-iteration GPU kernel calls (linalg/cdist/.item()/.tolist()) will time out — vectorize or precompute outside the loop.
+
+[Working Example — FORMAT REFERENCE ONLY]
+Below shows the EXACT structure of the code block you need to generate.
+You ONLY need to implement the algorithm core between `# --- ALGORITHM CORE START ---` and `# --- ALGORITHM CORE END ---`.
+The algorithm core is a PLACEHOLDER. You MUST replace it with an algorithm derived from the [Algorithm Design] and recalled mathematical theory above. Do NOT copy the placeholder logic.
+
+```python
+    # --- ALGORITHM CORE START ---
+    # [Replace this ENTIRE section with YOUR algorithm from the Algorithm Design above]
+    # Derive the implementation from the recalled mathematical theory.
+    # DO NOT copy the skeleton below. It only demonstrates variable usage.
+    #
+    # Variable reminders:
+    #   - N = image_embeds.shape[0]
+    #   - image_features (CLIP space) is preferred for vision-vision diversity.
+    #   - text_token_embedding is OPTIONAL; use only if your theory requires it.
+    #   - Spatial topology can be derived from image_embeds shape or image_grid_thw.
+    #
+    # You MUST assign selected_indices before the END marker.
+    # The skeleton below is a MINIMUM placeholder — replace with YOUR logic.
+    N = image_embeds.shape[0]
+    selected_indices = torch.randperm(N, device=image_embeds.device)[:target_vision_tokens]
+    # --- ALGORITHM CORE END ---
+```
+
+[Your Task]
+Follow the EXACT structure of the Working Example above:
+1. Generate ONLY the code between `# --- ALGORITHM CORE START ---` and `# --- ALGORITHM CORE END ---`.
+2. Do NOT include boundary-case handling (target_vision_tokens <= 0 or >= N) — the template handles these.
+3. Do NOT include a return statement — the template handles the return. You MAY sort `selected_indices` inside the algorithm core if your selection procedure does not naturally produce ascending order.
+4. You MUST define `selected_indices` inside the algorithm core section.
+5. Keep the `# --- ALGORITHM CORE START ---` and `# --- ALGORITHM CORE END ---` markers.
+6. You are inside a class method; do NOT redefine the method signature or indentation level.
