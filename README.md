@@ -157,13 +157,6 @@ This repository distributes algorithm snapshots, AutoResearch source, and compre
 
 The supplied dependency files preserve the original export. In particular, `pyproject.toml` describes the parent `mmtok` package, whose full source is not included here; it is not a complete installation specification for this artifact. A clean installation and end-to-end reproduction of the manuscript tables have not been validated for this export.
 
-<details>
-<summary><strong>Implementation version note: Leverage</strong></summary>
-
-The current [Leverage snapshot](algorithm/leverage.py) maintains a factorized state and normalizes its update using `sqrt(xPx + eps)`. The manuscript's sequential ridge information-gain algorithm uses the dense update `P <- P - vvᵀ / (1 + g_c)`. These are different update rules. Reproducing a manuscript experiment requires matching its evaluated code version; the exported snapshot should not be assumed to reproduce every reported accuracy result.
-
-</details>
-
 ## Experiment records
 
 | Archive | Contents | Files | Download size |
