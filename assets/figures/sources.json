@@ -1,0 +1,29 @@
+{
+  "manuscript": "AI--Math--AI: Structuring Algorithm Search with Mathematics",
+  "source_tex": "SCIS/scis_paper.tex",
+  "source_tex_sha256": "64b5efcf84c373404f98386432fb0b23df769da00ecd1a637c576592f81de1e1",
+  "presentation": "Original PNG bytes embedded unchanged in an SVG with an opaque white background.",
+  "figures": [
+    {
+      "asset": "overview.svg",
+      "source": "SCIS/case.png",
+      "source_sha256": "035f9a57e274fc521d05a92839271fd0808aa59234b35c0701c87423414cb38d",
+      "width": 5120,
+      "height": 2385
+    },
+    {
+      "asset": "framework.svg",
+      "source": "SCIS/fig1.png",
+      "source_sha256": "f5d777180cd88938e858e3b8b3a81439f05945566b4aa8bfd9ff267e2ff4d62f",
+      "width": 5513,
+      "height": 3055
+    },
+    {
+      "asset": "discovery.svg",
+      "source": "SCIS/fig2.png",
+      "source_sha256": "62df267edeb38c52f837703a323c2f706b75347b1c9c35d80b3ad592a8fd5507",
+      "width": 4638,
+      "height": 2195
+    }
+  ]
+}
