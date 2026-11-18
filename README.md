@@ -81,7 +81,7 @@ Each configuration has **one run of 150 attempts**, including failures and bound
 | **Leverage** | **73.2** | **77.5** | **72.0** |
 | **Variance-scaled FPS** | 72.3 | 77.4 | 70.3 |
 
-Values are **mean performance retention (%)**, with higher values indicating better preservation of full-token performance. For each task, retention is $100 \times s_{\mathrm{selector}} / s_{\mathrm{full}}$; task ratios are averaged equally before rounding. Each backbone uses its own full-token reference. These values are normalized performance ratios, rather than raw task accuracies.
+Values are **mean performance retention (%)**, with higher values indicating better preservation of full-token performance. For each task, retention is 100 × s<sub>selector</sub> / s<sub>full</sub>; task ratios are averaged equally before rounding. Each backbone uses its own full-token reference. These values are normalized performance ratios, rather than raw task accuracies.
 
 The seven reference tasks are **GQA, MMBench, MME, POPE, TextVQA, ScienceQA-IMG, and OCRBench**. Qwen evaluation additionally includes **InfoVQA, RealWorldQA, AI2D, ChartQA, DocVQA, SEED-Bench-2-Plus, and MMStar**. Qwen uses native dynamic resolution; the two transfer backbones use native dynamic tiling. Final evaluation uses frozen weights, matched per-image token budgets, and greedy decoding. The manuscript also reports 10% and 20% token budgets.
 
